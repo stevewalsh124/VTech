@@ -1,0 +1,70 @@
+---
+title: "Steve Walsh HW7"
+output: html_notebook
+---
+
+
+```{r}
+library(ggplot2)
+library(ggExtra)
+library(MASS)
+library(rvest)
+library(kableExtra)
+library(foreach)
+library(doParallel)
+library(parallel)
+library(doRNG)
+library(doSNOW)
+
+install.packages("Rmpi")
+library(Rmpi)
+#, lib.loc = "C:/Users/Steve/AppData/Local/Temp/RtmpSUkTL8/downloaded_packages"
+```
+
+```{r problem2}
+set.seed(12345)
+y <- rnorm(n = 1e7, mean = 1, sd = 1)
+
+avg <- mean(y)
+sum_sq <- vector()
+
+system.time({
+    for(i in 1:length(y)){
+        sum_sq[i]<-(y[i]-avg)^2
+        }
+    sum1 <- sum(sum_sq)
+})
+
+
+system.time({
+  sum2<-sum((y-avg)^2)
+})
+
+
+system.time({
+    sum_sq3 <- vector()
+    no_cores <- detectCores()-1
+    cl <- makeCluster(no_cores)
+    registerDoParallel(cl)
+    foreach(i = 1:length(y), .combine='c') %dopar% {
+        sum_sq3[i]<-(y[i]-avg)^2
+        sum3 <- sum(sum_sq3)
+    }
+})
+   
+ 
+    # registerDoParallel(cores=6)
+    # system.time({
+    # tans <- foreach(b = 1:B, .combine='c') %dopar% {
+    #     sum((y-avg)^2)
+    # }
+    # })
+    # stopImplicitCluster()
+    #stopCluster(cl)
+# })  
+
+#system.time({
+    
+#})    
+```
+
