@@ -14,7 +14,7 @@ library(foreach)
 library(doParallel)
 library(parallel)
 library(doRNG)
-library(doSNOW)
+#library(doSNOW)
 ```
 
 ```{r problem2}
@@ -38,7 +38,8 @@ system.time({
 
 #When length(y)=1e7, Timing stopped at: 8593 420.8 9602
 system.time({
-    cl <- makeCluster(3)
+    #cl <- makeCluster(3)
+    cl <- makePSOCKcluster(rep("localhost",3))
     registerDoParallel(cl)
     sum3 <- foreach(i = 1:length(y), .combine='+') %dopar% {
         sum((y[i]-avg)^2)
@@ -91,13 +92,19 @@ stopCluster(cl)
 #Bootstrap can adjust issues of normality for residuals
 #Can also use for noncon var, make sure data independent
 #Start by reading in x and y
-bootbeta <- c()
+set.seed(1267)
+n <- 200
+x <- 1/cbind(1,rt(n,df=1),rt(n,df=1),rt(n,df=1))
+beta <- c(1,2,3,0)
+y <- x %*% beta + rnorm(100,sd=3)
+
+bootbeta <- matrix(NA,nrow = 10000,ncol = 4)
 for(b in 1:10000){
-    bootid <- sample(1:10, 10, replace=T)
-    bootx <- x[bootid]
+    bootid <- sample(1:200, 200, replace=T)
+    bootx <- x[bootid,]
     booty <- y[bootid]
 
-    bootbeta[b] <- coef(lm(booty~bootx))[2] #<- [2] saves what you need for beta1
+    bootbeta[b,] <- coef(lm(booty~0+bootx)) 
 }
 
 CI95beta <- quantile(bootbeta, prob=c(.025, .975))
