@@ -15,15 +15,11 @@ library(doParallel)
 library(parallel)
 library(doRNG)
 library(doSNOW)
-
-install.packages("Rmpi")
-library(Rmpi)
-#, lib.loc = "C:/Users/Steve/AppData/Local/Temp/RtmpSUkTL8/downloaded_packages"
 ```
 
 ```{r problem2}
 set.seed(12345)
-y <- rnorm(n = 1e7, mean = 1, sd = 1)
+y <- rnorm(n = 1e3, mean = 1, sd = 1)
 
 avg <- mean(y)
 sum_sq <- vector()
@@ -40,16 +36,14 @@ system.time({
   sum2<-sum((y-avg)^2)
 })
 
-
+#When length(y)=1e7, Timing stopped at: 8593 420.8 9602
 system.time({
-    sum_sq3 <- vector()
-    no_cores <- detectCores()-1
-    cl <- makeCluster(no_cores)
+    cl <- makeCluster(3)
     registerDoParallel(cl)
-    foreach(i = 1:length(y), .combine='c') %dopar% {
-        sum_sq3[i]<-(y[i]-avg)^2
-        sum3 <- sum(sum_sq3)
+    sum3 <- foreach(i = 1:length(y), .combine='+') %dopar% {
+        sum((y[i]-avg)^2)
     }
+stopCluster(cl)
 })
    
  
@@ -67,4 +61,54 @@ system.time({
     
 #})    
 ```
+
+```{r problem3}
+
+     set.seed(1256)
+     theta <- as.matrix(c(1,2), nrow =2)
+     X <- cbind(1, rep(1:10,10))
+     h <- X %*% theta + rnorm(100,0,0.2)
+     
+     theta_current <- as.matrix(c(0,0), nrow =2)
+     theta_new <- as.matrix(c(1,1), nrow =2)
+     alpha <- 0.0001
+     tolerance <- 0.000001
+     m <- length(h)
+     
+     tX <- t(X)
+     t5 <- system.time({
+     while(sum(abs(theta_new-theta_current)>tolerance)){
+             theta_current <- theta_new
+             theta_grad <- tX %*% ((X %*% theta_current) - h)
+             theta_new <- theta_current - alpha/m * theta_grad
+     }
+     })
+     
+```
+
+
+```{r problem4, echo=F, warn=F}
+#Bootstrap can adjust issues of normality for residuals
+#Can also use for noncon var, make sure data independent
+#Start by reading in x and y
+bootbeta <- c()
+for(b in 1:10000){
+    bootid <- sample(1:10, 10, replace=T)
+    bootx <- x[bootid]
+    booty <- y[bootid]
+
+    bootbeta[b] <- coef(lm(booty~bootx))[2] #<- [2] saves what you need for beta1
+}
+
+CI95beta <- quantile(bootbeta, prob=c(.025, .975))
+CI95betalower <- CI95beta[1]
+CI95betaupper <- CI95beta[2]
+
+CI95beta
+
+#Check to see if 0 is in interval, then done
+```
+
+
+
 
