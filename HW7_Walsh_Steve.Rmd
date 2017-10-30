@@ -4,7 +4,7 @@ output: html_notebook
 ---
 
 
-```{r}
+```{r packages, echo=F}
 library(ggplot2)
 library(ggExtra)
 library(MASS)
@@ -14,17 +14,25 @@ library(foreach)
 library(doParallel)
 library(parallel)
 library(doRNG)
+library(dplyr)
 #library(doSNOW)
 ```
 
-```{r problem2}
-set.seed(12345)
-y <- rnorm(n = 1e3, mean = 1, sd = 1)
+## Problem 2
 
+The goal for this problem is to compute the sum of squares total (SST) using four methods, two of which are parallelized. The first and second use a standard *for* loop and vector operations, while the third and fourth use *dopar* and *parSapply*. Surprisingly, the parallelized code takes significantly longer than the first two. Perhaps this will reverse roles in certain conditions. Prior to beginning the system times, *y* and its average, *avg*, were stored. Additionally, the seed was set to ensure the same answers for all trials. Below is the code for the two non-parallelized trials:
+
+### 2a and 2b
+```{r problem2ab}
+set.seed(12345)
+y <- rnorm(n = 1e4, mean = 1, sd = 1)
+
+#2a, standard for loop
 avg <- mean(y)
 sum_sq <- vector()
 
-system.time({
+
+pr2a.time <- system.time({
     for(i in 1:length(y)){
         sum_sq[i]<-(y[i]-avg)^2
         }
@@ -32,66 +40,107 @@ system.time({
 })
 
 
-system.time({
+#2b, vector operations
+pr2b.time <- system.time({
   sum2<-sum((y-avg)^2)
 })
+```
 
+Here is the code for the two parallelized trials:
+
+### 2c and 2d
+```{r problem2cd}
+#2c, foreach loop
 #When length(y)=1e7, Timing stopped at: 8593 420.8 9602
-system.time({
-    #cl <- makeCluster(3)
-    cl <- makePSOCKcluster(rep("localhost",3))
-    registerDoParallel(cl)
+registerDoRNG()
+cl <- makePSOCKcluster(rep("localhost",3))
+registerDoParallel(cl)
+pr2c.time <- system.time({
     sum3 <- foreach(i = 1:length(y), .combine='+') %dopar% {
         sum((y[i]-avg)^2)
     }
-stopCluster(cl)
+    stopCluster(cl)
 })
-   
- 
-    # registerDoParallel(cores=6)
-    # system.time({
-    # tans <- foreach(b = 1:B, .combine='c') %dopar% {
-    #     sum((y-avg)^2)
-    # }
-    # })
-    # stopImplicitCluster()
-    #stopCluster(cl)
-# })  
 
-#system.time({
-    
-#})    
+
+#2d, parSapply
+cl <- makePSOCKcluster(rep("localhost",3))
+
+sum.func <- function(){
+    sum((y-mean(y))^2)
+    }
+clusterExport(cl, "sum.func")
+clusterExport(cl, "y")
+pr2d.time <- system.time({
+    sum4 <- parSapply(cl=cl, 1:length(y), FUN = function(y) sum.func(),
+                      USE.NAMES = F)
+    })
+stopCluster(cl)
 ```
+
+Below is the table for the system times of the computations for each of the four parts:
+
+```{r problem2table, echo=F}
+#Make table of the 4 times
+pr2.times <- rbind(pr2a.time, pr2b.time, pr2c.time, pr2d.time)
+pr2.times <- as_tibble(pr2.times[,1:3])
+pr2.times.tbl <- cbind(c("2a","2b","2c","2d"), as_tibble(pr2.times[,1:3]))
+knitr::kable(pr2.times.tbl, col.names = c("", "User","System","Elapsed"), caption = "Times for the Four Trials of Problem 2")
+```
+
+I was surprised to see that the parallelized version took much longer than that of the non-parallelized code.
+
+## Problem 3
+
+In the third problem, we take a function using gradient descent and parallelize the while loop with ten different starting values for $\theta$. Each of these ten pairs will run separately through the iterations and return a pair once the _while_ loop is exited. The code is available in the appendix, and the results from the ten different theta pairs are shown in the table below:
 
 ```{r problem3}
 
-     set.seed(1256)
-     theta <- as.matrix(c(1,2), nrow =2)
-     X <- cbind(1, rep(1:10,10))
-     h <- X %*% theta + rnorm(100,0,0.2)
+set.seed(1256)
+theta <- as.matrix(c(1,2), nrow =2)
+X <- cbind(1, rep(1:10,10))
+h <- X %*% theta + rnorm(100,0,0.2)
      
-     theta_current <- as.matrix(c(0,0), nrow =2)
-     theta_new <- as.matrix(c(1,1), nrow =2)
-     alpha <- 0.0001
-     tolerance <- 0.000001
-     m <- length(h)
+theta_current <- as.matrix(c(0,0), nrow =2)
+theta_new <- as.matrix(c(1,1), nrow =2)
+alpha <- 0.0001
+tolerance <- 0.000001
+m <- length(h)
+tX <- t(X)
      
-     tX <- t(X)
-     t5 <- system.time({
-     while(sum(abs(theta_new-theta_current)>tolerance)){
+#initialize ten pairs for theta that will be run in parallel
+theta_grid <- matrix(c(rep(0,10),seq(0,4.5,by=.5)),
+                     nrow=2, ncol=10, byrow = T)
+
+registerDoRNG()
+cl <- makePSOCKcluster(rep("localhost",3))
+registerDoParallel(cl)
+theta_new_mat <- matrix(NA, nrow = 10, ncol=2)
+theta_exp <- foreach(i = 1:10, .combine = "cbind") %dopar% {
+    theta_current <- theta_grid[,i]
+    theta_new <- theta_current+10*tolerance
+          while(sum(abs(theta_new-theta_current)>tolerance)|i<2e5){
+             i<-i+1
              theta_current <- theta_new
              theta_grad <- tX %*% ((X %*% theta_current) - h)
              theta_new <- theta_current - alpha/m * theta_grad
-     }
-     })
-     
+             #theta_exp <<- theta_new
+             }
+      return(theta_new)
+      knitr::kable(cbind(c("Theta0", "Theta1"), round(theta_exp,6)),col.names = 
+                     c("Theta Grid Col #:","1","2","3","4","5","6","7","8","9","10"))
+      
+}
+stopCluster(cl)
 ```
 
+## Problem 4
 
-```{r problem4, echo=F, warn=F}
-#Bootstrap can adjust issues of normality for residuals
-#Can also use for noncon var, make sure data independent
-#Start by reading in x and y
+In Problem 4, our final objective is to run bootstrapping in the regression setting while parallelizing our $b=10,000$ trials.
+
+```{r problem4, echo=T, warn=F}
+
+#PROBLEM 4: Bootstrap
 set.seed(1267)
 n <- 200
 x <- 1/cbind(1,rt(n,df=1),rt(n,df=1),rt(n,df=1))
@@ -99,23 +148,70 @@ beta <- c(1,2,3,0)
 y <- x %*% beta + rnorm(100,sd=3)
 
 bootbeta <- matrix(NA,nrow = 10000,ncol = 4)
-for(b in 1:10000){
+
+pr4.times <-system.time({
+  registerDoParallel(cores = 3)
+  bootloop <- foreach(b = 1:10000, .combine = "c") %do% {
     bootid <- sample(1:200, 200, replace=T)
     bootx <- x[bootid,]
     booty <- y[bootid]
 
     bootbeta[b,] <- coef(lm(booty~0+bootx)) 
 }
+})
+stopImplicitCluster()
 
-CI95beta <- quantile(bootbeta, prob=c(.025, .975))
-CI95betalower <- CI95beta[1]
-CI95betaupper <- CI95beta[2]
+CI95beta <- matrix(nrow=2, ncol=4)
+# CI95betalower <- CI95beta[1]
+# CI95betaupper <- CI95beta[2]
 
-CI95beta
+par(mfrow=c(2,2))
+for(i in 1:4){
+  hist(bootbeta[,i], main = 
+         paste("Histogram of Beta",i-1), xlab = "Beta value")
+  CI95beta[,i] <- quantile(bootbeta[,i], prob=c(.025, .975))
 
-#Check to see if 0 is in interval, then done
+}
+
+colnames(CI95beta) <- c("Beta0", "Beta1", "Beta2", "Beta3")
+knitr::kable(cbind(c("Lower Bound", "Upper Bound"), CI95beta), caption="95% Confidence Intervals for Each Beta Value via Bootstrapping")
+pr4.times
+#colnames(pr4.times) <- c("User","System","Elapsed","User Child", "System Child")
+# pr4.times.tbl <- as_tibble(pr4.times)
+#knitr::kable(cbind(c("Times"),pr4.times), col.names = c("User","System","Elapsed"),  caption = "Run Time for Problem 4")
 ```
 
 
+```{r problem4old, echo=F}
+# Non-parallelized code (below) was 10.58 seconds instead of 15.75
+# set.seed(1267)
+# n <- 200
+# x <- 1/cbind(1,rt(n,df=1),rt(n,df=1),rt(n,df=1))
+# beta <- c(1,2,3,0)
+# y <- x %*% beta + rnorm(100,sd=3)
+# 
+# bootbeta <- matrix(NA,nrow = 10000,ncol = 4)
+# 
+# system.time({
+# for(b in 1:10000){
+#     bootid <- sample(1:200, 200, replace=T)
+#     bootx <- x[bootid,]
+#     booty <- y[bootid]
+# 
+#     bootbeta[b,] <- coef(lm(booty~0+bootx)) 
+# }
+# })
+# 
+# CI95beta <- quantile(bootbeta, prob=c(.025, .975))
+# CI95betalower <- CI95beta[1]
+# CI95betaupper <- CI95beta[2]
+# 
+# CI95beta
+
+```
+
+#Appendix 1: R code  
+```{r Appendix, ref.label=c("problem3", "problem4"),  echo=TRUE, eval=F, tidy=TRUE, include=T}
+```
 
 
