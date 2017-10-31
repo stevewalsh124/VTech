@@ -1,0 +1,56 @@
+---
+title: "Steve Walsh HW8"
+output: html_notebook
+---
+```{r packages, echo=F}
+library(dplyr)
+library(tidytext)
+library(janeaustenr)
+library(wordcloud)
+library(stringr)
+```
+
+## Problem 2
+
+```{r problem2}
+url <- 'https://raw.githubusercontent.com/stevewalsh124/STAT_5014/master/08_text_mining_Rnotebooks_bash_sed_awk/survey_data.txt'
+survey_words <- read.delim(url, header = T, fill = T, stringsAsFactors = F)
+survey_words
+
+text_df1 <- data_frame(line=1:14, text = survey_words[,1])
+text_df2 <- data_frame(line=1:14, text = survey_words[,2])
+text_df3 <- data_frame(line=1:14, text = survey_words[,3])
+text_df4 <- data_frame(line=1:14, text = survey_words[,4])
+text_df  <- rbind(text_df1, text_df2, text_df3, text_df4)
+text_df
+
+new_text <- text_df[,2] #%>% unnest_tokens(word, text) %>% count(word, sort = T)
+#new_text
+new_lower <- tolower(new_text)
+#new_lower
+class(new_text)
+
+tidy_text <- new_lower  %>% 
+    str_replace_all("ineer","") %>% str_replace_all("Eng", "engineer") %>% 
+    str_replace_all("iate","") %>% str_replace_all("ermed","") %>% 
+    str_replace_all("int","intermediate") %>% str_replace_all("inner","") %>% 
+    str_replace_all("beg","beginner") %>% str_replace_all("some","") %>% 
+    str_replace_all("just","") %>% str_replace_all("teeny","") %>% 
+    str_replace_all("amount","") %>% str_replace_all("of","")  %>% 
+    str_replace_all("surface","")
+
+
+(tidy_text)
+tidy_df <- data_frame(text=tidy_text)
+#tidy_df
+finishedtext <- tidy_df %>% unnest_tokens(word, text) %>% count(word, sort = T)
+#finishedtext
+
+#new_text %>% anti_join(stop_words) %>% count(word, sort =T) 
+
+finishedtext %>% with(wordcloud(word, n, min.freq = 1, max.words = 100, colors=brewer.pal(8, "Dark2")))
+
+#finishedtext %>% count(word, sort = TRUE) %>% mutate(word = reorder(word, n)) %>% ggplot(aes(word, n)) + geom_col() + xlab(NULL) + coord_flip()
+
+```
+
