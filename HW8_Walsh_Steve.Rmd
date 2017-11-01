@@ -9,39 +9,42 @@ library(janeaustenr)
 library(wordcloud)
 library(stringr)
 library(ggplot2)
+library(RColorBrewer)
 ```
 
 ## Problem 2
 
+In Problem 2, our goal was to load, munge and discuss what we see in the survey data from the beginning of the semester. After importing and cleaning, the most popular word is *PC*, which is contrasted with only 3 in the *Mac* category. More students marked themselves as *Intermediate* than *Beginner*, and *Math* was the most common result among previous majors. Just shy of half the class had some exposure to *Python, Matlab* and *C*. More students have *BS* degrees than *MS* degrees coming into this program. For a more complete picture of this analysis, see the word cloud and frequency table below:
+
 ```{r problem2, echo=F}
 url <- 'https://raw.githubusercontent.com/stevewalsh124/STAT_5014/master/08_text_mining_Rnotebooks_bash_sed_awk/survey_data.txt'
 survey_words <- read.delim(url, header = T, fill = T, stringsAsFactors = F)
-survey_words
+#survey_words
 
 text_df1 <- data_frame(line=1:14, text = survey_words[,1])
 text_df2 <- data_frame(line=1:14, text = survey_words[,2])
 text_df3 <- data_frame(line=1:14, text = survey_words[,3])
 text_df4 <- data_frame(line=1:14, text = survey_words[,4])
 text_df  <- rbind(text_df1, text_df2, text_df3, text_df4)
-text_df
+#text_df
 
-new_text <- text_df[,2] #%>% unnest_tokens(word, text) %>% count(word, sort = T)
+new_text <- text_df[,2] %>% unnest_tokens(word, text) #%>% count(word, sort = T)
 #new_text
 new_lower <- tolower(new_text)
 #new_lower
-class(new_text)
+#class(new_lower)
 
 tidy_text <- new_lower  %>% 
-    str_replace_all("ineer","") %>% str_replace_all("Eng", "engineer") %>% 
+    str_replace_all("ineer","") %>% str_replace_all("eng", "engineer") %>% 
     str_replace_all("iate","") %>% str_replace_all("ermed","") %>% 
     str_replace_all("int","intermediate") %>% str_replace_all("inner","") %>% 
     str_replace_all("beg","beginner") %>% str_replace_all("some","") %>% 
     str_replace_all("just","") %>% str_replace_all("teeny","") %>% 
     str_replace_all("amount","") %>% str_replace_all("of","")  %>% 
-    str_replace_all("surface","")
+    str_replace_all("surface","") %>% str_replace_all("and","")
 
 
-(tidy_text)
+#(tidy_text)
 tidy_df <- data_frame(text=tidy_text)
 #tidy_df
 finishedtext <- tidy_df %>% unnest_tokens(word, text) %>% count(word, sort = T)
@@ -51,15 +54,100 @@ finishedtext <- tidy_df %>% unnest_tokens(word, text) %>% count(word, sort = T)
 
 finishedtext %>% with(wordcloud(word, n, min.freq = 1, max.words = 1500, colors=brewer.pal(8, "Dark2")))
 
-finishedtext %>% mutate(word = reorder(word, n)) %>% ggplot(aes(word, n)) + geom_col() + xlab(NULL) + ylab("Frequencies") + coord_flip()
+finishedtext %>% mutate(word = reorder(word, n)) %>% ggplot(aes(word, n, fill=word)) + geom_col() + xlab(NULL) + ylab("Frequencies") + coord_flip() + ggtitle("Most Frequent Responses in Programming Survey") +scale_fill_manual(values = colorRampPalette(brewer.pal(8, "Accent"))(27))
 
+```
+
+## Problem 3
+
+The dataset I chose to analyze in this problem is based on thousands of responses to given football scenarios. One example of the many different scenarios include: "**`r football.data[25,'orig_antecedent']`**" <br /><br />
+
+For each of the scenarios, there are five possible responses: *kick a field goal, pass, run, don't know / it depends, kneel down,* or *punt*. For each of the scenarios, respondents decided what play they would choose if they were the coach. The responses were gathered and are provided by https://www.crowdflower.com/data-for-everyone/.
+
+Given the many different scenarios, I chose to look at portions of the scenarios that included whether it was first down and 10, the ball was on the opponents' 20 yard line, there was three seconds left in the quarter, and the ball was on your 45 yard line. With the exception of the second and fourth portion, many of these overlap for multiple scenarios. Based on the word clouds and bar graphs, we can see that passing is certainly the most common choice if it is 1st and 10. When the ball is on the opponents' 20 yard line, running the ball becomes the most popular while passing is a rather close second option. If there are three seconds left, passing is the most common selection by respondents, but kicking a field goal is not an uncommon selection in this scenario. Finally, for plays from your 45 yard line, running and passing are equally common selections. Don't know, kneel down and punt are always rare selections given these four scenarios.
+
+```{r problem3, echo=F}
+#data provided from https://www.crowdflower.com/data-for-everyone/
+football.data <- read.csv('~/R/Football-Scenarios-DFE-832307.csv')
+football.data <- football.data[1:1000,]
+football.trim <- select(football.data, c('antecedent', 'orig_antecedent'))
+football.firstn10 <- filter(football.trim, grepl("It is first down and 10", 
+                                                 orig_antecedent))
+football.opp20 <- filter(football.trim, grepl("your opponent's 20 yardline.",
+                                              orig_antecedent))
+football.3sec <- filter(football.trim, grepl("3 seconds left in the fourth quarter",
+                                             orig_antecedent))
+football.ur45 <- filter(football.trim, grepl("your 45",
+                                             orig_antecedent))
+
+
+#I want to count the following five outcomes based on certain scenarios:
+#c("kick a field goal","pass","run","don't know / it depends", "kneel down", "punt")
+
+first10_df <- data_frame(text=tolower(football.firstn10[,1])) %>% 
+    unnest_tokens(line, text) %>%
+    count(line, sort = T)
+opp20_df <- data_frame(text=tolower(football.opp20[,1])) %>% 
+    unnest_tokens(line, text) %>%
+    count(line, sort = T)
+threesec_df <- data_frame(text=tolower(football.3sec[,1])) %>% 
+    unnest_tokens(line, text) %>%
+    count(line, sort = T)
+ur45_df <- data_frame(text=tolower(football.ur45[,1])) %>% 
+    unnest_tokens(line, text) %>%
+    count(line, sort = T)
+
+#4 Word Clouds each with title
+layout(matrix(c(1, 2), nrow=2), heights=c(1, 4))
+par(mar=rep(0, 4))
+plot.new()
+text(x=0.5, y=0.5, "First and 10")
+first10_df %>% with(wordcloud(line, n, min.freq = 1, max.words = 1500, 
+                              colors=brewer.pal(5, "PiYG")))
+layout(matrix(c(1, 2), nrow=2), heights=c(1, 4))
+par(mar=rep(0, 4))
+plot.new()
+text(x=0.5, y=0.5, "On Opponents' 20 Yard Line")
+opp20_df %>% with(wordcloud(line, n, min.freq = 1, max.words = 1500, 
+                            colors=brewer.pal(5, "PuOr")))
+layout(matrix(c(1, 2), nrow=2), heights=c(1, 4))
+par(mar=rep(0, 4))
+plot.new()
+text(x=0.5, y=0.5, "Three Seconds Left")
+threesec_df %>% with(wordcloud(line, n, min.freq = 1, max.words = 1500, 
+                               colors=brewer.pal(5, "RdGy")))
+layout(matrix(c(1, 2), nrow=2), heights=c(1, 4))
+par(mar=rep(0, 4))
+plot.new()
+text(x=0.5, y=0.5, "On Your 45 Yard Line")
+ur45_df %>% with(wordcloud(line, n, min.freq = 1, max.words = 1500, 
+                           colors=brewer.pal(5, "Spectral")))
+
+#Bar Plots
+first10_df %>% mutate(line = reorder(line, n)) %>% 
+    ggplot(aes(line, n, fill=line)) + geom_col() + xlab(NULL) + 
+    ylab("Frequencies") + coord_flip()+ggtitle("First Down") + 
+    scale_fill_manual(values = colorRampPalette(brewer.pal(8, "Accent"))(12))
+opp20_df %>% mutate(line = reorder(line, n)) %>% 
+    ggplot(aes(line, n, fill=line)) + geom_col() + 
+    xlab(NULL) + ylab("Frequencies") + coord_flip() + 
+    ggtitle("On Opponents' 20 Yard Line") + 
+    scale_fill_brewer(palette="RdBu")
+threesec_df %>% mutate(line = reorder(line, n)) %>% 
+    ggplot(aes(line, n, fill=line)) + geom_col() + 
+    xlab(NULL) + ylab("Frequencies") + coord_flip() + 
+    ggtitle("Three Seconds Left") + scale_fill_brewer(palette="Set3")
+ur45_df %>% mutate(line = reorder(line, n)) %>% 
+    ggplot(aes(line, n, fill=line)) + geom_col() + 
+    xlab(NULL) + ylab("Frequencies") + coord_flip() + 
+    ggtitle("Your 45 Yard Line") + scale_fill_brewer(palette="Set2")
 ```
 
 ## Problem 4
 
-I signed up for an account at ARC.
+I requested an account through ARC and now have an account for *DragonsTooth, Cascades, NewRiver* and *BlueRidge*.
 
 ## Appendix
 
-```{r Appendix, ref.label=c("problem2"),  echo=TRUE, eval=F, tidy=TRUE, include=T}
+```{r Appendix, ref.label=c("problem2",'problem3'),  echo=TRUE, eval=F, tidy=TRUE, include=T}
 ```
