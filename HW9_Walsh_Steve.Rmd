@@ -5,12 +5,17 @@ output: html_notebook
 
 ```{r echo=F}
 library("feather")
+library('nycflights13')
+flights_csv <- nycflights13::flights
+write.csv(nycflights13::flights, file = "flights.csv")
 ```
+
 
 ```{python echo=T, eval=F, include=T, engine.path="C:/Users/Steve/Anaconda3/python"}
 import pandas
 import csv
 import feather
+import wordcloud
 
 # Read flights data and select flights to O'Hare
 flights = pandas.read_csv("flights.csv")
@@ -23,6 +28,7 @@ print(flights[:5])
 
 # Write to feather file for reading from R    
 feather.write_dataframe(flights, "flights.feather")
+
 ## or as a csv
 with open("flights2.csv", "w", newline='') as csv_file:
         writer = csv.writer(csv_file, delimiter=',')

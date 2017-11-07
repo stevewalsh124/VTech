@@ -13,7 +13,6 @@ subtitle: bash/sed/awk as well
 ---
 
 ```{r misc_function, eval=T, echo=F, warnings=F, warn=F}
-
     rm(list = ls())   
     graphics.off()
     options(scipen = 4, digits = 6)
@@ -30,18 +29,19 @@ subtitle: bash/sed/awk as well
        suppressPackageStartupMessages(library.warn(
           package, help, pos, lib.loc, character.only = TRUE,
           logical.return, warn.conflicts, quietly, verbose))}
-    library(ggplot2)
-    library(ggExtra)
-    library(MASS)
-    library(dplyr)
-    library(tidyr)
-    library(tidytext)
-    library(janeaustenr)
-    library(stringr)
-    library(gutenbergr)
-    library(scales)
-    library(wordcloud)
-    library(feather)
+        suppressWarnings(library(ggplot2))
+        suppressWarnings(library(ggExtra))
+        suppressWarnings(library(MASS))
+        suppressWarnings(library(dplyr))
+        suppressWarnings(library(tidyr))
+        suppressWarnings(library(tidytext))
+        suppressWarnings(library(janeaustenr))
+        suppressWarnings(library(stringr))
+        suppressWarnings(library(gutenbergr))
+        suppressWarnings(library(scales))
+        suppressWarnings(library(wordcloud))
+        suppressWarnings(library(feather))
+    
 
 ```
 
