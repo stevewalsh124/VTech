@@ -3,10 +3,14 @@ title: "Python in R: Steve Walsh HW9"
 output: html_notebook
 ---
 
+```{r echo=F}
+library("feather")
+```
+
 ```{python echo=T, eval=F, include=T, engine.path="C:/Users/Steve/Anaconda3/python"}
 import pandas
-import feather
 import csv
+import feather
 
 # Read flights data and select flights to O'Hare
 flights = pandas.read_csv("flights.csv")
